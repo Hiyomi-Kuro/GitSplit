@@ -7,10 +7,14 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -52,8 +56,9 @@ public class MainActivity extends AppCompatActivity {
     private Uri selectedSource;
     private List<Uri> selectedParts = new ArrayList<>();
     private TextView status;
-    private Button compressButton;
-    private Button extractButton;
+    private android.widget.ProgressBar progressBar;
+    private MaterialButton compressButton;
+    private MaterialButton extractButton;
 
     private final ActivityResultLauncher<Intent> outputFolderPicker = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -101,40 +106,79 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, padding);
+        content.setBackgroundColor(0xFF121318);
 
-        TextView title = new TextView(this);
-        title.setText("ZIP 极限压缩 · 3 MB 分卷");
-        title.setTextSize(24);
-        title.setGravity(Gravity.CENTER_HORIZONTAL);
-        content.addView(title, matchWrap());
+        TextView subtitle = new TextView(this);
+        subtitle.setText("3 MB 分卷压缩与恢复工具");
+        subtitle.setTextSize(16);
+        subtitle.setTextColor(0xFFCAC4D0);
+        content.addView(subtitle, wrapWithTop(4));
 
+        MaterialCardView infoCard = new MaterialCardView(this);
+        infoCard.setRadius(dp(18));
+        infoCard.setCardElevation(dp(2));
+        infoCard.setCardBackgroundColor(0xFF1D1B20);
         TextView description = new TextView(this);
-        description.setText("压缩任意一个文件为 Bandizip 风格的 .z01、.z02…、.zip 分卷。"
-                + "每卷最大 3 MiB（3,145,728 字节），使用 ZIP 9 级压缩。\n\n"
-                + "恢复时请一次选中同一组的全部分卷；应用会自动按编号合并并还原原文件。"
-                + "分卷不可单独解压，也不要改名或缺失任何一卷。");
-        description.setTextSize(16);
-        content.addView(description, wrapWithTop(18));
+        description.setText("大文件压缩为 Bandizip 风格 .z01、.z02…、.zip 分卷。\n\n"
+                + "每卷最大 3 MiB，支持批量选择分卷并恢复原始文件。");
+        description.setTextSize(15);
+        description.setTextColor(0xFFE6E0E9);
+        description.setPadding(dp(16), dp(16), dp(16), dp(16));
+        infoCard.addView(description);
+        content.addView(infoCard, wrapWithTop(24));
 
-        compressButton = new Button(this);
-        compressButton.setText("选择文件并创建 3 MB 分卷");
+        TextView feature = new TextView(this);
+        feature.setText("✓ ZIP 9 级压缩\n✓ 自动编号与完整性检查\n✓ 无需全盘存储权限");
+        feature.setTextSize(15);
+        feature.setTextColor(0xFFE6E0E9);
+        content.addView(feature, wrapWithTop(20));
+
+        compressButton = createActionButton("创建 3 MB 分卷", android.R.drawable.ic_menu_upload);
         compressButton.setOnClickListener(v -> sourcePicker.launch(createOpenIntent(false)));
-        content.addView(compressButton, wrapWithTop(22));
+        content.addView(compressButton, buttonLayout(28));
 
-        extractButton = new Button(this);
-        extractButton.setText("选择全部分卷并恢复文件");
+        extractButton = createActionButton("恢复分卷文件", android.R.drawable.ic_menu_save);
         extractButton.setOnClickListener(v -> partsPicker.launch(createOpenIntent(true)));
-        content.addView(extractButton, wrapWithTop(10));
+        content.addView(extractButton, buttonLayout(12));
 
         status = new TextView(this);
-        status.setText("准备就绪。文件通过系统选择器读取，不需要全盘存储权限。");
-        status.setTextSize(15);
-        status.setPadding(0, dp(18), 0, 0);
-        content.addView(status, matchWrap());
+        status.setText("准备就绪");
+        status.setTextSize(14);
+        status.setTextColor(0xFFCAC4D0);
+        content.addView(status, wrapWithTop(28));
+
+        progressBar = new android.widget.ProgressBar(this);
+        progressBar.setIndeterminate(true);
+        progressBar.setVisibility(View.GONE);
+        content.addView(progressBar, wrapWithTop(12));
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
         scroll.addView(content);
         return scroll;
+    }
+
+    private MaterialButton createActionButton(String text, int icon) {
+        MaterialButton button = new MaterialButton(this);
+        button.setText(text);
+        button.setIconResource(icon);
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setIconPadding(dp(12));
+        button.setMinHeight(dp(56));
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setCornerRadius(dp(16));
+        button.setTextSize(16);
+        button.setAllCaps(false);
+        button.setGravity(Gravity.CENTER);
+        return button;
+    }
+
+    private LinearLayout.LayoutParams buttonLayout(int top) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        params.topMargin = dp(top);
+        return params;
     }
 
     private Intent createOpenIntent(boolean allowMultiple) {
@@ -384,6 +428,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             compressButton.setEnabled(!busy);
             extractButton.setEnabled(!busy);
+            progressBar.setVisibility(busy ? View.VISIBLE : View.GONE);
             status.setText(message);
         });
     }
@@ -392,6 +437,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             compressButton.setEnabled(true);
             extractButton.setEnabled(true);
+            progressBar.setVisibility(View.GONE);
             status.setText(message);
         });
     }
